@@ -25,7 +25,7 @@ namespace WpfApp2
     public partial class sendTo : Window
     {
         public int nu;
-        public string connec = "Data Source=MEDHAT;Initial Catalog=mailingsystem;Integrated Security=True";
+        public string connec = "Data Source=DESKTOP-ITEONSL\\RAY;Initial Catalog=mailingsystem;Integrated Security=True";
         public string str;
         public sendTo(String val)
         {
@@ -34,6 +34,15 @@ namespace WpfApp2
             senddraft.Visibility = Visibility.Hidden;
 
         }
+        public sendTo(String val,string to)
+        {
+            InitializeComponent();
+            str = val;
+            towpf.Text = to;
+            senddraft.Visibility = Visibility.Hidden;
+
+        }
+
         public sendTo(String toemail,string subj,string desc,int num)
         {
             InitializeComponent();
@@ -62,7 +71,9 @@ namespace WpfApp2
 
             if (emailcount != 1)
             {
-                MessageBox.Show("This email Does not exist");
+                Errors.Visibility = Visibility.Visible;
+                Errors.Text = "This email Does not exist";
+               
                 return;
             }
 
@@ -84,6 +95,8 @@ namespace WpfApp2
 
             cmd.ExecuteNonQuery();
             con.Close();
+
+            
             Close();
         }
         private void Button_senddraft(object sender, RoutedEventArgs e)
@@ -100,7 +113,9 @@ namespace WpfApp2
 
             if (emailcount != 1)
             {
-                MessageBox.Show("This email Does not exist");
+                Errors.Visibility = Visibility.Visible;
+                Errors.Text = "This email Does not exist";
+             
                 return;
             }
 
@@ -139,7 +154,10 @@ namespace WpfApp2
 
                 if (emailcount != 1)
                 {
-                    MessageBox.Show("This email Does not exist");
+                    Errors.Visibility = Visibility.Visible;
+                    Errors.Text = "This email Does not exist";
+
+                   
                     return;
                 }
 

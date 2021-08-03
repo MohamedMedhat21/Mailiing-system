@@ -14,6 +14,7 @@ using System.Data.SqlClient;
 using System.Data;
 using System.Windows.Media;
 using System.Configuration;
+using System.IO;
 
 namespace WpfApp2
 {
@@ -22,19 +23,28 @@ namespace WpfApp2
     /// </summary>
     public partial class MailsHome : Window
     {
-        public string connec = "Data Source=MEDHAT;Initial Catalog=mailingsystem;Integrated Security=True";
+        public string connec = "Data Source=DESKTOP-ITEONSL\\RAY;Initial Catalog=mailingsystem;Integrated Security=True";
 
         public string str;
         public string lastfun;
-        public MailsHome()
-        {
-            InitializeComponent();
-
-        }
+ 
         public MailsHome(string val)
         {
             InitializeComponent();
             str = val;
+
+            shownameimg();
+            get_sent();
+            get_spam();
+            get_drafts();
+
+            Button_inbox(new object(), new RoutedEventArgs());
+
+
+        }
+
+        public void shownameimg ()
+        {
             SqlConnection con = new SqlConnection(connec);
             con.Open();
 
@@ -45,88 +55,77 @@ namespace WpfApp2
             while (userreader.Read())
                 usernamewpf.Text = "Welcome back , " + (userreader["username"].ToString()); ;
             userreader.Close();
+
+
+
+            SqlCommand sc = new SqlCommand("select imgdata from Users where email=@email", con);
+            sc.CommandType = System.Data.CommandType.Text;
+            sc.Parameters.Add(new SqlParameter("@email", str));
+            SqlDataReader reader = sc.ExecuteReader();
+            while (reader.Read())
+            {
+                if (String.IsNullOrWhiteSpace(reader["imgdata"].ToString()))
+                    return;
+
+                byte[] data = (byte[])reader["imgdata"];
+                MemoryStream strm = new MemoryStream();
+                strm.Write(data, 0, data.Length);
+                strm.Position = 0;
+                System.Drawing.Image img = System.Drawing.Image.FromStream(strm);
+                BitmapImage bi = new BitmapImage();
+
+                bi.BeginInit();
+
+                MemoryStream ms = new MemoryStream();
+
+                img.Save(ms, System.Drawing.Imaging.ImageFormat.Bmp);
+
+                ms.Seek(0, SeekOrigin.Begin);
+
+                bi.StreamSource = ms;
+
+                bi.EndInit();
+
+                im.Source = bi;
+
+
+            }
+            reader.Close();
             con.Close();
+        }
+        private void get_inbox ()
+        {
+            SqlConnection con = new SqlConnection(connec);
+            con.Open();
+            SqlCommand num = new SqlCommand("msgnum", con);
+            num.CommandType = CommandType.StoredProcedure;
+            num.Parameters.Add(new SqlParameter("@email", str));
+            
 
-
-            Button_inbox(new object(), new RoutedEventArgs());
-
-
+               int count = Convert.ToInt32(num.ExecuteScalar());
+            con.Close();
+            
+            btnInbox.Content = "Inbox (" + count + ")";
         }
 
-        private void Button_New(object sender, RoutedEventArgs e)
+        private void get_drafts()
         {
-            sendTo st = new sendTo(str);
-            st.Show();
-        }
-        private void Button_inbox(object sender, RoutedEventArgs e)
-        {
-            contmsg.Visibility = Visibility.Hidden;
-
-
-
             SqlConnection con = new SqlConnection(connec);
             con.Open();
 
 
-            SqlCommand num = new SqlCommand("msgnum", con);
+
+            SqlCommand num = new SqlCommand("msgdraftnum", con);
             num.CommandType = CommandType.StoredProcedure;
             num.Parameters.Add(new SqlParameter("@email", str));
+            
             int count = Convert.ToInt32(num.ExecuteScalar());
-            msgs.Text = "messages number is " + count;
-
-
-
-
-            SqlCommand cmd = new SqlCommand("msgpro", con);
-            cmd.CommandType = CommandType.StoredProcedure;
-            cmd.Parameters.Add(new SqlParameter("@theloggedemail", str));
-
-            SqlDataAdapter da = new SqlDataAdapter(cmd);
-            DataTable dt = new DataTable("Mails");
-            da.Fill(dt);
-            dg.ItemsSource = dt.DefaultView;
-            dg.Columns[0].Visibility = Visibility.Visible;
-            dg.Columns[1].Visibility = Visibility.Hidden;
-            dg.Columns[4].Visibility = Visibility.Hidden;
-            dg.Columns[5].Visibility = Visibility.Hidden;
-            dg.Columns[6].Visibility = Visibility.Hidden;
-            dg.Columns[7].Visibility = Visibility.Hidden;
-
-
-            /*  SqlDataReader reader = cmd.ExecuteReader();
-
-              DataTable tbl_mail = new DataTable();
-              tbl_mail.Columns.Add("From");
-              tbl_mail.Columns.Add("Subject");
-              tbl_mail.Columns.Add("Date");
-
-              DataRow row;
-              while (reader.Read())
-              {
-                  row = tbl_mail.NewRow();
-                  row["From"] = reader["Username"];
-                  row["Subject"] = reader["Subject"];
-                  row["Date"] = reader["msgdate"];
-
-                  tbl_mail.Rows.Add(row);
-
-
-              }
-
-              dg.ItemsSource = tbl_mail.DefaultView;
-
-
-              reader.Close();
-
-      */
             con.Close();
-            lastfun = "inbox";
+           btnDraft.Content = "Drafts (" + count + ")";
         }
 
-        private void Button_Sent(object sender, RoutedEventArgs e)
+        public void get_sent()
         {
-            contmsg.Visibility = Visibility.Hidden;
-
             SqlConnection con = new SqlConnection(connec);
             con.Open();
 
@@ -135,10 +134,114 @@ namespace WpfApp2
             num.CommandType = CommandType.StoredProcedure;
             num.Parameters.Add(new SqlParameter("@email", str));
             int count = Convert.ToInt32(num.ExecuteScalar());
-            msgs.Text = "messages number is " + count;
+          
+            con.Close();
+          btnSent.Content = "Sent (" + count + ")";
+
+
+        }
+        private void get_spam()
+        {
+            SqlConnection con = new SqlConnection(connec);
+            con.Open();
+
+
+            SqlCommand num = new SqlCommand("msgspamnum", con);
+            num.CommandType = CommandType.StoredProcedure;
+            num.Parameters.Add(new SqlParameter("@email", str));
+            int count = Convert.ToInt32(num.ExecuteScalar());
+            con.Close();
+            btnSpam.Content = "Spam (" + count + ")";
+        }
+
+        private void Button_New(object sender, RoutedEventArgs e)
+        {
+            sendTo st = new sendTo(str);
+            st.Show();
+
+            st.Closed += child_Closed;
+
+        }
+
+        private void child_Closed(object sender, EventArgs e)
+        {
+            get_sent();
+            get_spam();
+            get_drafts();
+
+            if (lastfun == "inbox")
+            {
+                Button_inbox(new object(), new RoutedEventArgs());
+            }
 
 
 
+            else if (lastfun == "spam")
+            {
+                Button_spam(new object(), new RoutedEventArgs());
+
+            }
+            else if (lastfun == "sent")
+            {
+                Button_Sent(new object(), new RoutedEventArgs());
+
+
+            }
+            else
+            {
+                Button_draft(new object(), new RoutedEventArgs());
+
+
+            }
+        }
+
+        private void Button_inbox(object sender, RoutedEventArgs e)
+        {
+            contmsg.Visibility = Visibility.Hidden;
+
+            dg1.Visibility = Visibility.Visible;
+            dg2.Visibility = Visibility.Collapsed;
+
+             get_inbox();
+            
+
+            SqlConnection con = new SqlConnection(connec);
+            con.Open();
+
+            SqlCommand cmd = new SqlCommand("msgpro", con);
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.Add(new SqlParameter("@theloggedemail", str));
+
+            SqlDataAdapter da = new SqlDataAdapter(cmd);
+            DataTable dt = new DataTable("Mails");
+            da.Fill(dt);
+            dg1.ItemsSource = dt.DefaultView;
+            dg1.Columns[0].Visibility = Visibility.Visible;
+            dg1.Columns[1].Visibility = Visibility.Hidden;
+            dg1.Columns[4].Visibility = Visibility.Hidden;
+            dg1.Columns[5].Visibility = Visibility.Hidden;
+            dg1.Columns[6].Visibility = Visibility.Hidden;
+            dg1.Columns[7].Visibility = Visibility.Hidden;
+            con.Close();
+
+
+            lastfun = "inbox";
+        }
+
+        private void Button_Sent(object sender, RoutedEventArgs e)
+        {
+            contmsg.Visibility = Visibility.Hidden;
+            dg1.Visibility = Visibility.Collapsed;
+            dg2.Visibility = Visibility.Visible;
+
+            get_sent();
+           
+
+            SqlConnection con = new SqlConnection(connec);
+            con.Open();
+
+
+           
 
             SqlCommand cmd = new SqlCommand("msgsent", con);
             cmd.CommandType = CommandType.StoredProcedure;
@@ -147,34 +250,13 @@ namespace WpfApp2
             SqlDataAdapter da = new SqlDataAdapter(cmd);
             DataTable dt = new DataTable("Mails");
             da.Fill(dt);
-            dg.ItemsSource = dt.DefaultView;
-            dg.Columns[1].Visibility = Visibility.Visible;
-            dg.Columns[0].Visibility = Visibility.Hidden;
-            /* SqlDataReader reader = cmd.ExecuteReader();
-
-             DataTable tbl_mail = new DataTable();
-             tbl_mail.Columns.Add("To");
-             tbl_mail.Columns.Add("Subject");
-             tbl_mail.Columns.Add("Date");
-
-             DataRow row;
-             while (reader.Read())
-             {
-                 row = tbl_mail.NewRow();
-                 row["To"] = reader["Username"];
-                 row["Subject"] = reader["Subject"];
-                 row["Date"] = reader["msgdate"];
-
-                 tbl_mail.Rows.Add(row);
-
-
-             }
-
-             dg.ItemsSource = tbl_mail.DefaultView;
-
-
-             reader.Close();
-             */
+            dg2.ItemsSource = dt.DefaultView;
+            dg2.Columns[1].Visibility = Visibility.Visible;
+            dg2.Columns[0].Visibility = Visibility.Hidden;
+            dg2.Columns[4].Visibility = Visibility.Hidden;
+            dg2.Columns[5].Visibility = Visibility.Hidden;
+            dg2.Columns[6].Visibility = Visibility.Hidden;
+            dg2.Columns[7].Visibility = Visibility.Hidden;
 
             con.Close();
             lastfun = "sent";
@@ -184,18 +266,14 @@ namespace WpfApp2
         private void Button_draft(object sender, RoutedEventArgs e)
         {
             contmsg.Visibility = Visibility.Visible;
+            dg1.Visibility = Visibility.Collapsed;
+            dg2.Visibility = Visibility.Visible;
+
+            get_drafts();
+           
 
             SqlConnection con = new SqlConnection(connec);
             con.Open();
-
-
-
-            SqlCommand num = new SqlCommand("msgdraftnum", con);
-            num.CommandType = CommandType.StoredProcedure;
-            num.Parameters.Add(new SqlParameter("@email", str));
-            int count = Convert.ToInt32(num.ExecuteScalar());
-            msgs.Text = "messages number is " + count;
-
 
             SqlCommand cmd = new SqlCommand("msgdraft", con);
             cmd.CommandType = CommandType.StoredProcedure;
@@ -204,34 +282,13 @@ namespace WpfApp2
             SqlDataAdapter da = new SqlDataAdapter(cmd);
             DataTable dt = new DataTable("Mails");
             da.Fill(dt);
-            dg.ItemsSource = dt.DefaultView;
-            dg.Columns[1].Visibility = Visibility.Visible;
-            dg.Columns[0].Visibility = Visibility.Hidden;
-            /*SqlDataReader reader = cmd.ExecuteReader();
-
-            DataTable tbl_mail = new DataTable();
-            tbl_mail.Columns.Add("To");
-            tbl_mail.Columns.Add("Subject");
-            tbl_mail.Columns.Add("Date");
-
-            DataRow row;
-            while (reader.Read())
-            {
-                row = tbl_mail.NewRow();
-                row["To"] = reader["Username"];
-                row["Subject"] = reader["Subject"];
-                row["Date"] = reader["msgdate"];
-
-                tbl_mail.Rows.Add(row);
-
-
-            }
-
-            dg.ItemsSource = tbl_mail.DefaultView;
-
-
-            reader.Close();
-            */
+            dg2.ItemsSource = dt.DefaultView;
+            dg2.Columns[1].Visibility = Visibility.Visible;
+            dg2.Columns[0].Visibility = Visibility.Hidden;
+            dg2.Columns[4].Visibility = Visibility.Hidden;
+            dg2.Columns[5].Visibility = Visibility.Hidden;
+            dg2.Columns[6].Visibility = Visibility.Hidden;
+            dg2.Columns[7].Visibility = Visibility.Hidden;
 
             con.Close();
             lastfun = "draft";
@@ -241,16 +298,17 @@ namespace WpfApp2
         private void Button_spam(object sender, RoutedEventArgs e)
         {
             contmsg.Visibility = Visibility.Hidden;
+            dg1.Visibility = Visibility.Visible;
+            dg2.Visibility = Visibility.Collapsed;
+
+            get_spam();
+          
 
             SqlConnection con = new SqlConnection(connec);
             con.Open();
 
 
-            SqlCommand num = new SqlCommand("msgspamnum", con);
-            num.CommandType = CommandType.StoredProcedure;
-            num.Parameters.Add(new SqlParameter("@email", str));
-            int count = Convert.ToInt32(num.ExecuteScalar());
-            msgs.Text = "messages number is " + count;
+           
 
 
 
@@ -263,37 +321,12 @@ namespace WpfApp2
             SqlDataAdapter da = new SqlDataAdapter(cmd);
             DataTable dt = new DataTable("Mails");
             da.Fill(dt);
-            dg.ItemsSource = dt.DefaultView;
+            dg1.ItemsSource = dt.DefaultView;
 
-            dg.Columns[0].Visibility = Visibility.Visible;
-            dg.Columns[1].Visibility = Visibility.Hidden;
+            dg1.Columns[0].Visibility = Visibility.Visible;
+            dg1.Columns[1].Visibility = Visibility.Hidden;
 
-            /* SqlDataReader reader = cmd.ExecuteReader();
-
-             DataTable tbl_mail = new DataTable();
-             tbl_mail.Columns.Add("From");
-             tbl_mail.Columns.Add("Subject");
-             tbl_mail.Columns.Add("Date");
-
-             DataRow row;
-             while (reader.Read())
-             {
-                 row = tbl_mail.NewRow();
-                 row["From"] = reader["Username"];
-                 row["Subject"] = reader["Subject"];
-                 row["Date"] = reader["msgdate"];
-
-                 tbl_mail.Rows.Add(row);
-
-
-             }
-
-             dg.ItemsSource = tbl_mail.DefaultView;
-
-
-             reader.Close();
-
-     */
+           
             con.Close();
 
             lastfun = "spam";
@@ -310,8 +343,11 @@ namespace WpfApp2
 
         private void Button_Delete(object sender, RoutedEventArgs e)
         {
-
-            DataRowView row = dg.SelectedItem as DataRowView;
+            DataRowView row;
+            if (dg1.Visibility == Visibility.Visible)
+                 row = dg1.SelectedItem as DataRowView;
+            else
+                 row = dg2.SelectedItem as DataRowView;
 
             string msgnum = row.Row.ItemArray[5].ToString();
              int num = Convert.ToInt32(msgnum);
@@ -369,12 +405,14 @@ namespace WpfApp2
         }
         private void Button_cont(object sender, RoutedEventArgs e)
         {
-            if (dg.SelectedIndex != -1)
+            if (dg2.SelectedIndex != -1)
             {
 
-                DataRowView row = dg.SelectedItem as DataRowView;
+                DataRowView row = dg2.SelectedItem as DataRowView;
                 sendTo st = new sendTo(row.Row.ItemArray[3].ToString(), row.Row.ItemArray[1].ToString(), row.Row.ItemArray[4].ToString(), Convert.ToInt32(row.Row.ItemArray[5]));
                 st.Show();
+                st.Closed += child_Closed;
+
             }
             else
                 MessageBox.Show("Pls Select a message");
@@ -385,6 +423,13 @@ namespace WpfApp2
             Info userinfo = new Info(str);
             userinfo.Show();
             Close();
+        }
+
+        private void Button_Reply(object sender, RoutedEventArgs e)
+        {
+            DataRowView row = dg1.SelectedItem as DataRowView;
+            sendTo st = new sendTo(str,row.Row.ItemArray[3].ToString());
+            st.Show();
         }
     }
 }

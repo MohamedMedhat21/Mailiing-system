@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:WpfApp2"
         mc:Ignorable="d"
-    Title="Register" Height="1050" Width="1400"
+    Title="OA3M" Height="1050" Width="1400"
         >
     <Grid>
         <Grid.ColumnDefinitions>
@@ -117,11 +117,12 @@
                             <RadioButton Name="female">female</RadioButton>
                         </StackPanel>
 
+                        <TextBlock Name="Errors" Foreground="Red" FontSize="20" Visibility="Collapsed"  ></TextBlock>
 
                         <StackPanel HorizontalAlignment="Center" Orientation="Horizontal" Margin="0 20">
 
                             <Border Width="300" Height="50" BorderThickness="1" Background=" #8469f4" BorderBrush="#8469f4" CornerRadius="12,12,12,12" >
-                                <Button Style="{StaticResource MyButton}" FontWeight="Bold" Margin="10 0" Background=" #8469f4" Foreground="White" FontSize="30" Click="Button_Click">
+                                <Button IsDefault="True" Style="{StaticResource MyButton}" FontWeight="Bold" Margin="10 0" Background=" #8469f4" Foreground="White" FontSize="30" Click="Button_Click">
                                     Register
                                 </Button>
                             </Border>
